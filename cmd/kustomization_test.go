@@ -1,10 +1,11 @@
 package cmd
 
 import (
+	"testing"
+
 	kustomizev1 "github.com/fluxcd/kustomize-controller/api/v1"
 	"github.com/magiconair/properties/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"testing"
 )
 
 func TestKustomizeGitRepoNamespace(t *testing.T) {

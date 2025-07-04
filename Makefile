@@ -81,3 +81,18 @@ help:
 	@echo "  clean      Remove build files"
 	@echo "  release    Build a release version"
 	@echo "  help       Show this help message"
+
+.PHONY: release-all
+release-all: $(DIST_DIR)
+	@echo "Building release version $(VERSION) for linux/amd64"
+	GOOS=linux GOARCH=amd64 CGO_ENABLED=$(CGO_FLAG) go build -o $(DIST_DIR)/$(CLI_NAME)-$(VERSION)-linux-amd64 .
+
+	@echo "Building release version $(VERSION) for linux/arm64"
+	GOOS=linux GOARCH=arm64 CGO_ENABLED=$(CGO_FLAG) go build -o $(DIST_DIR)/$(CLI_NAME)-$(VERSION)-linux-arm64 .
+
+	@echo "Building release version $(VERSION) for darwin/amd64"
+	GOOS=darwin GOARCH=amd64 CGO_ENABLED=$(CGO_FLAG) go build -o $(DIST_DIR)/$(CLI_NAME)-$(VERSION)-darwin-amd64 .
+
+	@echo "Building release version $(VERSION) for darwin/arm64"
+	GOOS=darwin GOARCH=arm64 CGO_ENABLED=$(CGO_FLAG) go build -o $(DIST_DIR)/$(CLI_NAME)-$(VERSION)-darwin-arm64 .
+
