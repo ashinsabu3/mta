@@ -107,7 +107,7 @@ with kubectl.`,
 
 		// get the gitsource
 		gitRepoSource := &sourcev1.GitRepository{}
-		ociRepoSource := &sourcev1.OCIRepository{}
+		//ociRepoSource := &sourcev1.OCIRepository{}
 
 		if repoKind == "GitRepository" {
 			err = k.Get(ctx, types.NamespacedName{Namespace: repoNamespace, Name: repoName}, gitRepoSource)
@@ -144,12 +144,15 @@ with kubectl.`,
 
 		spl := strings.SplitAfter(kustomization.Spec.Path, "./")
 
-		if len(spl[1]) == 0 {
+		if len(spl) > 0 && len(spl[1]) == 0 {
 			sourcePath = `*`
 			sourcePathExclude = "flux-system"
-		} else {
+		} else if len(spl) > 1 && len(spl[1]) > 0 {
 			sourcePath = spl[1] + "/*"
 			sourcePathExclude = spl[1] + "/flux-system"
+		} else {
+			sourcePath = kustomization.Spec.Path
+			sourcePathExclude = "flux-system"
 		}
 
 		// Add sourcePathExclude to the excludedDirs
