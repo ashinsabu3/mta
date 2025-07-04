@@ -173,7 +173,13 @@ displays the results.
 
 			// Add all Kustomizations to the table
 			for _, k := range kustomizationList.Items {
-				t.AppendRow(table.Row{k.Kind, k.Name, k.Namespace, utils.TruncMsg(k.Status.Conditions[0].Message)})
+				message := ""
+				if len(k.Status.Conditions) > 0 {
+					message = k.Status.Conditions[0].Message
+				} else {
+					message = "No status available"
+				}
+				t.AppendRow(table.Row{k.Kind, k.Name, k.Namespace, utils.TruncMsg(message)})
 			}
 
 			//Render the table to the console

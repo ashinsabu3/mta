@@ -33,6 +33,7 @@ spec:
       sourceRef:
         kind: HelmRepository
         name: podinfo
+  targetNamespace: podinfo-helm
   install:
     createNamespace: true
   upgrade:

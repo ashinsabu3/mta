@@ -70,7 +70,7 @@ func init() {
 	rootCmd.PersistentFlags().String("name", "", "Name of Kustomization or HelmRelease to export")
 	rootCmd.PersistentFlags().String("namespace", "flux-system", "Namespace of where the Kustomization or HelmRelease is")
 	rootCmd.PersistentFlags().String("argocd-namespace", "argocd", "Namespace where Argo CD is installed")
-
+	rootCmd.PersistentFlags().String("argoproject", "default", "Argo CD project to use for the migrated Application")
 	// Cobra also supports local flags, which will only run
 	// when this action is called directly.
 	//rootCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")

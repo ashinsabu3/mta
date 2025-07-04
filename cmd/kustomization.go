@@ -68,6 +68,7 @@ with kubectl.`,
 		kustomizationName, _ := cmd.Flags().GetString("name")
 		kustomizationNamespace, _ := cmd.Flags().GetString("namespace")
 		confirmMigrate, _ := cmd.Flags().GetBool("confirm-migrate")
+		argoProject, _ := cmd.Flags().GetString("argoproject")
 
 		// Set up the default context
 		ctx := context.TODO()
@@ -150,7 +151,7 @@ with kubectl.`,
 			GitIncludeDir:           sourcePath,
 			GitExcludeDir:           exd,
 			AppName:                 "{{path.basename}}",
-			AppProject:              "default",
+			AppProject:              argoProject,
 			AppRepoURL:              gitSource.Spec.URL,
 			AppTargetRevision:       gitSource.Spec.Reference.Branch,
 			AppPath:                 "{{path}}",

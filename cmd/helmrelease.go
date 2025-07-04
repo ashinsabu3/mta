@@ -64,6 +64,7 @@ with kubectl.`,
 		helmReleaseName, _ := cmd.Flags().GetString("name")
 		helmReleaseNamespace, _ := cmd.Flags().GetString("namespace")
 		confirmMigrate, _ := cmd.Flags().GetBool("confirm-migrate")
+		argoProject, _ := cmd.Flags().GetString("argoproject")
 
 		// Set up the default context
 		ctx := context.TODO()
@@ -125,11 +126,11 @@ with kubectl.`,
 		// Generate the Argo CD Helm Application
 		helmApp := argo.ArgoCdHelmApplication{
 			//Name:                 helmRelease.Name,
-			Name:                 helmAppNamePrefix + "-" + helmRelease.Name,
+			Name:                 helmRelease.Name + helmAppNamePrefix,
 			Namespace:            argoCDNamespace,
 			DestinationNamespace: helmRelease.Spec.TargetNamespace,
 			DestinationServer:    "https://kubernetes.default.svc",
-			Project:              "default",
+			Project:              argoProject,
 			HelmChart:            helmRelease.Spec.Chart.Spec.Chart,
 			HelmRepo:             helmRepo.Spec.URL,
 			HelmTargetRevision:   helmRelease.Spec.Chart.Spec.Version,
