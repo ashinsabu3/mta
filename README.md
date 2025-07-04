@@ -1,14 +1,14 @@
 # mta (Migrate to Argo CD)
 
-The `mta` cli will export Flux components to Argo CD consumable
+The `mta` cli will export Flux components to Argo CD/Harness Gitops agent consumable
 CRs. This can be used in order to help migrating from Flux to Argo
-CD. This is in the "proof of concept" phase and we make no guarantees.
+CD. 
 
-We love feedback! Come join us at our [Akuity Discord Community](https://akuity.community)!
+This is currently in an alpha POC state and doesn't support all possible variations.
 
 # Installation
 
-Install the `mta` binary from the [releases page](https://github.com/akuity/mta/releases) in your `$PATH`.
+Install the `mta` binary from the [releases page](https://github.com/ashinsabu3/mta/releases) in your `$PATH`.
 
 There is shell completion for convenience. 
 
@@ -18,13 +18,6 @@ There is shell completion for convenience.
 mta completion bash
 ```
 
-# Quickstart
-
-Here's a video which explains how to use 'mta' to export Flux components to Argo CD consumable CRs.
-
-[![Introduction to 'mta' - Migrate from Flux to Argo CD](https://img.youtube.com/vi/c8sP0QSOfsg/0.jpg)](https://www.youtube.com/watch?v=c8sP0QSOfsg)
-
-Below are some examples
 
 ## Manual Migration
 
