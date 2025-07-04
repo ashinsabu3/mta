@@ -24,7 +24,7 @@ import (
 	"github.com/akuity/mta/pkg/utils"
 	argov1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	kustomizev1 "github.com/fluxcd/kustomize-controller/api/v1"
-	sourcev1 "github.com/fluxcd/source-controller/api/v1"
+	sourcev1 "github.com/fluxcd/source-controller/api/v1beta2"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	corev1 "k8s.io/api/core/v1"
@@ -101,21 +101,33 @@ with kubectl.`,
 			log.Fatal(err)
 		}
 
-		gitRepoNamespace := getGitRepoNamespace(kustomization)
-		gitRepoName := kustomization.Spec.SourceRef.Name
+		repoNamespace := getRepoNamespace(kustomization)
+		repoKind := kustomization.Spec.SourceRef.Kind
+		repoName := kustomization.Spec.SourceRef.Name
 
 		// get the gitsource
-		gitSource := &sourcev1.GitRepository{}
-		err = k.Get(ctx, types.NamespacedName{Namespace: gitRepoNamespace, Name: gitRepoName}, gitSource)
-		if err != nil {
-			log.Fatal(err)
+		gitRepoSource := &sourcev1.GitRepository{}
+		ociRepoSource := &sourcev1.OCIRepository{}
+
+		if repoKind == "GitRepository" {
+			err = k.Get(ctx, types.NamespacedName{Namespace: repoNamespace, Name: repoName}, gitRepoSource)
+			if err != nil {
+				log.Fatal(err)
+			}
+		}
+		if repoKind == "OCIRepository" {
+			//err = k.Get(ctx, types.NamespacedName{Namespace: repoNamespace, Name: repoName}, ociRepoSource)
+			//if err != nil {
+			//	log.Fatal(err)
+			//}
+			log.Fatalf("OCIRepository migrations are not supported yet")
 		}
 
 		//Get the secret holding the info we need
 		var sshPrivateKey string
-		if gitSource.Spec.SecretRef != nil && gitSource.Spec.SecretRef.Name != "" {
+		if repoKind == "GitRepository" && gitRepoSource.Spec.SecretRef != nil && gitRepoSource.Spec.SecretRef.Name != "" {
 			secret := &corev1.Secret{}
-			err = k.Get(ctx, types.NamespacedName{Namespace: kustomizationNamespace, Name: gitSource.Spec.SecretRef.Name}, secret)
+			err = k.Get(ctx, types.NamespacedName{Namespace: kustomizationNamespace, Name: gitRepoSource.Spec.SecretRef.Name}, secret)
 			if err != nil {
 				log.Fatal(err)
 			}
@@ -146,19 +158,19 @@ with kubectl.`,
 		// Generate the ApplicationSet manifest based on the struct
 		applicationSet := argo.GitDirApplicationSet{
 			Namespace:               argoCDNamespace,
-			GitRepoURL:              gitSource.Spec.URL,
-			GitRepoRevision:         gitSource.Spec.Reference.Branch,
+			GitRepoURL:              gitRepoSource.Spec.URL,
+			GitRepoRevision:         gitRepoSource.Spec.Reference.Branch,
 			GitIncludeDir:           sourcePath,
 			GitExcludeDir:           exd,
 			AppName:                 "{{path.basename}}",
 			AppProject:              argoProject,
-			AppRepoURL:              gitSource.Spec.URL,
-			AppTargetRevision:       gitSource.Spec.Reference.Branch,
+			AppRepoURL:              gitRepoSource.Spec.URL,
+			AppTargetRevision:       gitRepoSource.Spec.Reference.Branch,
 			AppPath:                 "{{path}}",
 			AppDestinationServer:    "https://kubernetes.default.svc",
 			AppDestinationNamespace: kustomization.Spec.TargetNamespace,
 			SSHPrivateKey:           sshPrivateKey,
-			GitOpsRepo:              gitSource.Spec.URL,
+			GitOpsRepo:              gitRepoSource.Spec.URL,
 		}
 
 		appset, err := argo.GenGitDirAppSet(applicationSet)
@@ -177,7 +189,7 @@ with kubectl.`,
 			}
 
 			// Suspend the GitRepo reconcilation
-			if err := utils.SuspendFluxObject(k, ctx, gitSource); err != nil {
+			if err := utils.SuspendFluxObject(k, ctx, gitRepoSource); err != nil {
 				log.Fatal(err)
 			}
 
@@ -192,7 +204,7 @@ with kubectl.`,
 				log.Fatal(err)
 			}
 
-			if err := utils.DeleteK8SObjects(k, ctx, gitSource); err != nil {
+			if err := utils.DeleteK8SObjects(k, ctx, gitRepoSource); err != nil {
 				log.Fatal(err)
 			}
 
@@ -216,13 +228,13 @@ with kubectl.`,
 	},
 }
 
-func getGitRepoNamespace(kustomization *kustomizev1.Kustomization) string {
-	gitRepoNamespace := kustomization.Spec.SourceRef.Namespace
-	if gitRepoNamespace == "" {
-		gitRepoNamespace = kustomization.Namespace
+func getRepoNamespace(kustomization *kustomizev1.Kustomization) string {
+	repoNamespace := kustomization.Spec.SourceRef.Namespace
+	if repoNamespace == "" {
+		repoNamespace = kustomization.Namespace
 	}
 
-	return gitRepoNamespace
+	return repoNamespace
 }
 
 func init() {

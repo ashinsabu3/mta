@@ -81,7 +81,7 @@ func GenArgoCdHelmApplication(app ArgoCdHelmApplication) (*v1alpha1.Application,
 	return a, nil
 }
 
-// GenGitDirApplicationSet generates an ArgoCD Git Directory ApplicationSet that
+// GenGitDirAppSet generates an ArgoCD Git Directory ApplicationSet that
 func GenGitDirAppSet(appSet GitDirApplicationSet) (*v1alpha1.ApplicationSet, error) {
 	// Some Defaults
 	// TODO: Make these configurable

@@ -42,7 +42,7 @@ func TestKustomizeGitRepoNamespace(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			gitRepoNamespace := getGitRepoNamespace(tt.kustomization)
+			gitRepoNamespace := getRepoNamespace(tt.kustomization)
 			assert.Equal(t, gitRepoNamespace, tt.expectedGitRepoNamespace)
 		})
 	}
