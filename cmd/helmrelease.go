@@ -66,25 +66,20 @@ with kubectl.`,
 		confirmMigrate, _ := cmd.Flags().GetBool("confirm-migrate")
 		argoProject, _ := cmd.Flags().GetString("argoproject")
 
-		// Set up the default context
 		ctx := context.TODO()
 
 		// Set up the schema because HelmRelease and Repo is a CRD
 		scheme := runtime.NewScheme()
-		helmv2.AddToScheme(scheme)
-		sourcev1.AddToScheme(scheme)
-		argov1alpha1.AddToScheme(scheme)
+		_ = helmv2.AddToScheme(scheme)
+		_ = sourcev1.AddToScheme(scheme)
+		_ = argov1alpha1.AddToScheme(scheme)
 
 		// create rest config using the kubeconfig file.
 		restConfig, err := utils.NewRestConfig(kubeConfig)
 		if err != nil {
 			log.Fatal(err)
 		}
-
-		// Create a new client based on the restconfig and scheme
-		k, err := client.New(restConfig, client.Options{
-			Scheme: scheme,
-		})
+		k, err := client.New(restConfig, client.Options{Scheme: scheme})
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -95,11 +90,22 @@ with kubectl.`,
 		if err != nil {
 			log.Fatal(err)
 		}
-		helmRepoNamespace := GetHelmRepoNamespace(helmRelease)
 
-		// Get the helmrepo based on type, report if error
+		var sourceRefName string
+		var helmChartNameSafe string
+		var helmTargetRevision string
+
+		sourceRefName = helmRelease.Spec.Chart.Spec.SourceRef.Name
+		helmChartNameSafe = helmRelease.Spec.Chart.Spec.Chart
+		helmTargetRevision = helmRelease.Spec.Chart.Spec.Version
+
+		helmRepoNamespace := helmRelease.Spec.Chart.Spec.SourceRef.Namespace
+		if helmRepoNamespace == "" {
+			helmRepoNamespace = helmRelease.Namespace
+		}
+
 		helmRepo := &sourcev1.HelmRepository{}
-		err = k.Get(ctx, types.NamespacedName{Namespace: helmRepoNamespace, Name: helmRelease.Spec.Chart.Spec.SourceRef.Name}, helmRepo)
+		err = k.Get(ctx, types.NamespacedName{Namespace: helmRepoNamespace, Name: sourceRefName}, helmRepo)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -113,29 +119,36 @@ with kubectl.`,
 			log.Fatal(err)
 		}
 
-		// Get the Values from the HelmRelease
-		yaml, err := yaml.Marshal(helmRelease.Spec.Values)
-		if err != nil {
-			log.Fatal(err)
+		var valuesYaml []byte
+		if helmRelease.Spec.Values != nil {
+			valuesYaml, _ = yaml.Marshal(helmRelease.Spec.Values)
+		} else {
+			valuesYaml = []byte{}
+		}
+
+		createNamespace := "false"
+		if helmRelease.Spec.Install != nil {
+			createNamespace = strconv.FormatBool(helmRelease.Spec.Install.CreateNamespace)
 		}
 
 		helmAppNamePrefix := helmRelease.Spec.TargetNamespace
 		if helmAppNamePrefix == "" {
 			helmAppNamePrefix = helmReleaseNamespace
 		}
-		// Generate the Argo CD Helm Application
+
+		helmRepoURL := helmRepo.Spec.URL
+
 		helmApp := argo.ArgoCdHelmApplication{
-			//Name:                 helmRelease.Name,
 			Name:                 helmRelease.Name + helmAppNamePrefix,
 			Namespace:            argoCDNamespace,
 			DestinationNamespace: helmRelease.Spec.TargetNamespace,
 			DestinationServer:    "https://kubernetes.default.svc",
 			Project:              argoProject,
-			HelmChart:            helmRelease.Spec.Chart.Spec.Chart,
-			HelmRepo:             helmRepo.Spec.URL,
-			HelmTargetRevision:   helmRelease.Spec.Chart.Spec.Version,
-			HelmValues:           string(yaml),
-			HelmCreateNamespace:  strconv.FormatBool(helmRelease.Spec.Install.CreateNamespace),
+			HelmChart:            helmChartNameSafe,
+			HelmRepo:             helmRepoURL,
+			HelmTargetRevision:   helmTargetRevision,
+			HelmValues:           string(valuesYaml),
+			HelmCreateNamespace:  createNamespace,
 		}
 
 		helmArgoCdApp, err := argo.GenArgoCdHelmApplication(helmApp)
@@ -143,54 +156,19 @@ with kubectl.`,
 			log.Fatal(err)
 		}
 
-		// Do the migration automatically if that is set, if not print to stdout
 		if confirmMigrate {
-			log.Info("Migrating HelmRelease \"" + helmRelease.Name + "\" to Argo CD via an Application")
-			// Suspend helm reconciliation
-			if err := utils.SuspendFluxObject(k, ctx, helmRelease); err != nil {
-				log.Fatal(err)
-			}
-
-			// suspend helm repo reconciliation
-			if err := utils.SuspendFluxObject(k, ctx, helmRepo); err != nil {
-				log.Fatal(err)
-			}
-
-			// suspend helm chart
-			if err := utils.SuspendFluxObject(k, ctx, helmChart); err != nil {
-				log.Fatal(err)
-			}
-
-			// Finally, create the Argo CD Application
-			if err := utils.CreateK8SObjects(k, ctx, helmArgoCdApp); err != nil {
-				log.Fatal(err)
-			}
-
-			// Delete the HelmRelease
-			if err := utils.DeleteK8SObjects(k, ctx, helmRelease); err != nil {
-				log.Fatal(err)
-			}
-
-			// Delete the HelmRepo
-			if err := utils.DeleteK8SObjects(k, ctx, helmRepo); err != nil {
-				log.Fatal(err)
-			}
-
-			// Delete the chart
-			if err := utils.DeleteK8SObjects(k, ctx, helmChart); err != nil {
-				log.Fatal(err)
-			}
-
+			log.Infof("Migrating HelmRelease %q to Argo CD Application", helmRelease.Name)
+			_ = utils.SuspendFluxObject(k, ctx, helmRelease)
+			_ = utils.SuspendFluxObject(k, ctx, helmRepo)
+			_ = utils.SuspendFluxObject(k, ctx, helmChart)
+			_ = utils.CreateK8SObjects(k, ctx, helmArgoCdApp)
+			_ = utils.DeleteK8SObjects(k, ctx, helmRelease)
+			_ = utils.DeleteK8SObjects(k, ctx, helmRepo)
+			_ = utils.DeleteK8SObjects(k, ctx, helmChart)
 		} else {
-			// Set the printer type to YAML
 			printr := printers.NewTypeSetter(k.Scheme()).ToPrinter(&printers.YAMLPrinter{})
-
-			// print the AppSet YAML to Strdout
-			if err := printr.PrintObj(helmArgoCdApp, os.Stdout); err != nil {
-				log.Fatal(err)
-			}
+			_ = printr.PrintObj(helmArgoCdApp, os.Stdout)
 		}
-
 	},
 }
 
